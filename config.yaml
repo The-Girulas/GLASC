@@ -1,0 +1,11 @@
+llm:
+  provider: "LOCAL" # Options: "LOCAL", "OPENAI", "ANTHROPIC"
+  # Le modèle Qwen2.5-1.5B est un excellent compromis pour CPU.
+  # Il sera téléchargé automatiquement par transformers si absent.
+  model_path: "Qwen/Qwen2.5-1.5B-Instruct"
+  temperature: 0.1
+  max_tokens: 512
+
+system:
+  log_level: "INFO"
+  device: "cpu" # Force CPU pour éviter les erreurs si CUDA mal configuré, ou "auto"
