@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    background-color: #0a0c10;
+    color: #e0e0e0;
+    overflow: hidden; /* App like feel */
+}
+
+/* Custom Scrollbar for Terminals */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0c10; 
+}
+::-webkit-scrollbar-thumb {
+  background: #1c2331; 
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00eeff; 
+}

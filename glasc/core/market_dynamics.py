@@ -113,10 +113,27 @@ def simulate_paths(
     
     return jnp.exp(full_log_paths)
 
-# Helper pour l'exécution simple (non JITée par défaut si importée, mais la fonction core est JITée)
-def run_simulation_demo():
-    """Fonction de démonstration (non utilisée en prod)."""
-    key = jax.random.PRNGKey(42)
-    params = MarketParameters(mu=0.05, sigma=0.2, lambda_j=0.5, jump_mean=0.0, jump_std=0.1)
-    paths = simulate_paths(key, params, s0=100.0, T=1.0, n_steps=252, n_paths=10)
-    return paths
+@partial(jax.jit, static_argnames=["n_steps", "n_paths"])
+def compute_success_probability(
+    key: PRNGKeyArray,
+    params: MarketParameters,
+    s0: float,
+    T: float,
+    target_acquisition_price: float,
+    n_steps: int = 100,
+    n_paths: int = 10_000
+) -> float:
+    """
+    Calcule la probabilité de réussite de l'OPA.
+    Hypothèse : L'OPA réussit si le prix du marché chute en dessous du 'target_acquisition_price' 
+    (rendant l'entreprise vulnérable/bon marché) ou si la volatilité permet un coup de force.
+    
+    Ici, simple métrique : P(S_T < Acquisition_Price).
+    Plus l'actif s'effondre, plus c'est facile à racheter.
+    """
+    paths = simulate_paths(key, params, s0, T, n_steps, n_paths)
+    final_prices = paths[:, -1]
+    
+    # Combien de chemins finissent sous le prix cible ?
+    success_count = jnp.sum(final_prices < target_acquisition_price)
+    return success_count / n_paths

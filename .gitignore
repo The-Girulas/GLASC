@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
+
+# Node/JS (Future React Frontend)
+node_modules/
+dist/
+build/
+.npm
+.yarn
+
+# GLASC Specific
+models/
+data/
+outputs/
+.gemini/
+*.log
+config_local.yaml
