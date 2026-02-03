@@ -1,35 +1,35 @@
-# Masterclass : Agent Orchestrator & LangGraph
+# Masterclass: Agent Orchestrator & LangGraph
 
-## 1. L'Intention : De la Chaîne au Cycle
+## 1. The Intent: From Chain to Cycle
 
-Les pipelines classiques ("RAG Chain") sont linéaires : `Input -> Retrieval -> LLM -> Output`.
-En Finance, c'est insuffisant. Une décision d'investissement nécessite une **réflexion itérative** :
-1.  "Je manque d'info sur la dette."
-2.  "Cherche les covenants." -> *Outil*
-3.  "Covenants trouvés. Ah, c'est risqué. Et la volatilité ?"
-4.  "Calcule la VaR." -> *Outil*
-5.  "VaR OK. On y va."
+Classic pipelines ("RAG Chain") are linear: `Input -> Retrieval -> LLM -> Output`.
+In Finance, this is insufficient. An investment decision requires **iterative reflection**:
+1.  "I lack info on debt."
+2.  "Search for covenants." -> *Tool*
+3.  "Covenants found. Ah, it's risky. What about volatility?"
+4.  "Calculate VaR." -> *Tool*
+5.  "VaR OK. Let's go."
 
-C'est pourquoi nous utilisons **LangGraph**, qui permet de définir des **Graphes d'États Cycliques**.
+This is why we use **LangGraph**, which allows defining **Cyclical State Graphs**.
 
-## 2. "Under the Hood" : Architecture du Strategist
+## 2. "Under the Hood": Strategist Architecture
 
-Le `AgentState` est la mémoire de travail partagée.
-Chaque noeud (`QuantAnalyst`, `CorporateSpy`) est un **Spécialiste** qui enrichit cet état.
+The `AgentState` is the shared working memory.
+Each node (`QuantAnalyst`, `CorporateSpy`) is a **Specialist** that enriches this state.
 
-Le noeud `Strategist` (notre LLM Local Qwen 1.5B) agit comme le Cortex Frontal. Il ne fait pas les calculs (c'est le job de JAX), il prend les décisions.
-Il reçoit le `risk_report` (structuré) et le `brain_score` (numérique) et en déduit une stratégie sémantique ("ATTACK").
+The `Strategist` node (our Local LLM Qwen 1.5B) acts as the Frontal Cortex. It does not do the calculations (that's JAX's job), it makes the decisions.
+It receives the `risk_report` (structured) and the `brain_score` (numerical) and deduces a semantic strategy ("ATTACK").
 
-## 3. Focus Framework : Local LLM Inference
+## 3. Framework Focus: Local LLM Inference
 
-Nous avons fait le choix radical d'intégrer le LLM **au coeur du runtime** (`glasc/core/llm_client.py`), et non via une API externe distante.
-Pourquoi ?
-*   **Confidentialité** : Les plans d'OPA ne sortent jamais du serveur.
-*   **Latence** : Pas d'appel réseau HTTP.
-*   **Contrôle** : Nous utilisons `transformers` pour charger le modèle précis (`Qwen2.5-1.5B-Instruct`), garantissant que le comportement est inchangé d'une exécution à l'autre (Reproductibilité).
+We made the radical choice to integrate the LLM **into the heart of the runtime** (`glasc/core/llm_client.py`), and not via a distant external API.
+Why?
+*   **Confidentiality**: Takeover plans never leave the server.
+*   **Latency**: No HTTP network calls.
+*   **Control**: We use `transformers` to load the precise model (`Qwen2.5-1.5B-Instruct`), ensuring behavior is unchanged from one run to another (Reproducibility).
 
-## 4. Pro-Tip : TypedDict State
+## 4. Pro-Tip: TypedDict State
 
-Utiliser un `TypedDict` (`AgentState`) plutôt qu'un dictionnaire fourre-tout est crucial.
-Cela force une rigueur : Si le `PredatorOracle` oublie d'écrire le `brain_score`, le typage nous alertera (ou au moins l'IDE).
-Dans des systèmes complexes à 10+ agents, le schéma de données strict est la seule chose qui empêche le chaos.
+Using a `TypedDict` (`AgentState`) rather than a catch-all dictionary is crucial.
+It enforces rigor: If the `PredatorOracle` forgets to write the `brain_score`, typing will alert us (or at least the IDE).
+In complex systems with 10+ agents, strict data schema is the only thing preventing chaos.

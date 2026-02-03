@@ -1,44 +1,44 @@
-# Masterclass : Corporate Graph & Behavioral Finance
+# Masterclass: Corporate Graph & Behavioral Finance
 
-## 1. L'Intention : Modéliser le "Terrain de Bataille"
+## 1. The Intent: Modeling the "Battlefield"
 
-Une OPA (Offre Publique d'Achat) n'est pas qu'une affaire de prix. C'est une guerre de mouvement sur un graphe social et financier.
-Pour réussir un rachat hostile, il faut :
-1.  **Identifier les Maillons Faibles** : Les actionnaires prêts à vendre (Mercenaires).
-2.  **Contourner les Défenses** : Pillules empoisonnées (Poison Pills), Covenants de dette.
-3.  **Convaincre** : Atteindre le seuil de 50% + 1 voix.
+A Takeover Bid (TOB) is not just about price. It is a war of movement on a social and financial graph.
+To succeed in a hostile takeover, you must:
+1.  **Identify Weak Links**: Shareholders ready to sell (Mercenaries).
+2.  **Bypass Defenses**: Poison Pills, Debt Covenants.
+3.  **Convince**: Reach the threshold of 50% + 1 vote.
 
-Nous modélisons ceci avec un graphe `NetworkX` où :
-- **Noeuds** : Actionnaires, Banques, Board Members.
-- **Arêtes** : Relations de propriété (OWNS), de dette (LENDS_TO) et d'influence (INFLUENCES).
+We model this with a `NetworkX` graph where:
+- **Nodes**: Shareholders, Banks, Board Members.
+- **Edges**: Ownership relations (OWNS), debt (LENDS_TO), and influence (INFLUENCES).
 
-## 2. "Under the Hood" : Behavioral Finance
+## 2. "Under the Hood": Behavioral Finance
 
-Comment simuler la décision de vendre ?
-Un modèle purement rationnel ("Prix Offert > Prix Marché => Vente") est faux.
-Dans `will_tender()`, nous implémentons une fonction d'utilité comportementale :
+How do we simulate the decision to sell?
+A purely rational model ("Offer Price > Market Price => Sell") is false.
+In `will_tender()`, we implement a behavioral utility function:
 
-$$ Score = \alpha \cdot \text{Premium} + \beta \cdot \text{GainHistorique} $$
-$$ \text{Decision} = Score > \text{SeuilLoyauté} + \text{AversionPerte} $$
+$$ Score = \alpha \cdot \text{Premium} + \beta \cdot \text{HistoricalGain} $$
+$$ \text{Decision} = Score > \text{LoyaltyThreshold} + \text{LossAversion} $$
 
-- **Premium** : L'incitatif immédiat (+20% cash demain).
-- **Gain Historique** : L'effet de dotation (Endowment Effect). "J'ai acheté à 10, ça vaut 100, je suis riche". Mais nous avons plafonné cet effet : un actionnaire fidèle ne vend pas son "bébé" juste parce qu'il a fait du profit. Il faut un Premium.
-- **Loyauté** : Un facteur multiplicatif sur le premium requis.
-- **Aversion à la Perte** : Si `Offre < CostBasis`, le seuil de vente augmente drastiquement. Personne n'aime valider une perte.
+- **Premium**: The immediate incentive (+20% cash tomorrow).
+- **Historical Gain**: The Endowment Effect. "I bought at 10, it's worth 100, I'm rich." But we capped this effect: a loyal shareholder doesn't sell their "baby" just because they made a profit. A Premium is required.
+- **Loyalty**: A multiplicative factor on the required premium.
+- **Loss Aversion**: If `Offer < CostBasis`, the selling threshold increases drastically. No one likes to validate a loss.
 
-## 3. Focus Framework : Pydantic & NetworkX
+## 3. Framework Focus: Pydantic & NetworkX
 
-Pourquoi `Pydantic` ?
-Dans un graphe complexe, les données non structurées sont une source de bugs infinis (ex: un covenant manquant).
-`Pydantic` garantit le schéma de chaque noeud (`Shareholder`, `DebtTranche`).
-Si on essaie d'ajouter une dette sans `max_leverage_ratio`, le code plante *avant* la simulation.
+Why `Pydantic`?
+In a complex graph, unstructured data is a source of infinite bugs (e.g., a missing covenant).
+`Pydantic` guarantees the schema of each node (`Shareholder`, `DebtTranche`).
+If we try to add debt without a `max_leverage_ratio`, the code crashes *before* the simulation.
 
-Pourquoi `NetworkX` ?
-Pour calculer des propriétés émergentes :
-- **Centralité** : Qui est l'actionnaire pivot ?
-- **Connected Components** : Y a-t-il un bloc d'actionnaires concertistes (Pacte d'actionnaires) ?
+Why `NetworkX`?
+To calculate emergent properties:
+- **Centrality**: Who is the pivotal shareholder?
+- **Connected Components**: Is there a block of concerted shareholders (Shareholder Pact)?
 
-## 4. Pro-Tip : Détection de Covenants en Temps Réel
+## 4. Pro-Tip: Real-Time Covenant Detection
 
-L'un des plus grands risques d'un LBO (Leveraged Buy-Out) est de déclencher le remboursement immédiat de la dette existante.
-Notre méthode `check_poison_pills` surveille le ratio `NetDebt / EBITDA` en temps réel pendant la simulation. C'est un "Système d'Alerte Précoce" pour l'attaquant.
+One of the greatest risks of an LBO (Leveraged Buy-Out) is triggering the immediate repayment of existing debt.
+Our `check_poison_pills` method monitors the `NetDebt / EBITDA` ratio in real-time during the simulation. It is an "Early Warning System" for the attacker.

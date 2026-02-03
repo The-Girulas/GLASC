@@ -1,45 +1,45 @@
-# Masterclass : Risk Engine & Différentiation Automatique
+# Masterclass: Risk Engine & Automatic Differentiation
 
-## 1. L'Intention Mathématique : Pathwise Sensitivity
+## 1. The Mathematical Intent: Pathwise Sensitivity
 
-Dans la finance traditionnelle, pour calculer le **Delta** ($\frac{\partial V}{\partial S}$) d'un portefeuille complexe, on utilise souvent la méthode des "différences finies" (Bumping) :
+In traditional finance, to calculate the **Delta** ($\frac{\partial V}{\partial S}$) of a complex portfolio, the "finite difference" method (Bumping) is often used:
 $$ \Delta \approx \frac{V(S + \epsilon) - V(S)}{\epsilon} $$
 
-Cela pose deux problèmes :
-1.  **Lenteur** : Si vous avez 1000 paramètres (ex: volatilités locales), il faut relancer la simulation 1000 fois. Coût $O(N)$.
-2.  **Bruit** : Simulation Monte Carlo est bruitée. La différence de deux simulations bruitées (même avec la même graine) peut être instable si $\epsilon$ est mal choisi.
+This poses two problems:
+1.  **Slowness**: If you have 1000 parameters (e.g., local volatilities), you must rerun the simulation 1000 times. Risk cost $O(N)$.
+2.  **Noise**: Monte Carlo simulation is noisy. The difference between two noisy simulations (even with the same seed) can be unstable if $\epsilon$ is poorly chosen.
 
-**L'approche GLASC : Pathwise Derivative (via AD)**
-Nous différentions directement le chemin de simulation.
+**The GLASC Approach: Pathwise Derivative (via AD)**
+We differentiate the simulation path directly.
 $$ \frac{\partial}{\partial \theta} \mathbb{E}[f(X_T(\theta))] = \mathbb{E}[f'(X_T) \frac{\partial X_T}{\partial \theta}] $$
 
-Grâce à `jax.grad`, nous obtenons le gradient exact de la fonction de simulation par rapport aux paramètres.
+Thanks to `jax.grad`, we obtain the exact gradient of the simulation function with respect to the parameters.
 
-## 2. "Under the Hood" : AD vs Bumping
+## 2. "Under the Hood": AD vs Bumping
 
-Dans `risk_engine.py`, nous définissons `pricing_function` qui prend en entrée `params` et `s0`.
+In `risk_engine.py`, we define `pricing_function` which takes `params` and `s0` as input.
 ```python
 price, delta = jax.value_and_grad(price_given_s0)(s0)
 ```
-En une seule passe (Forward + Backward), JAX calcule :
-1.  Le Prix (Forward pass).
-2.  La sensibilité de **chaque opération mathématique** par rapport à $S_0$ (Backward pass).
+In a single pass (Forward + Backward), JAX calculates:
+1.  The Price (Forward pass).
+2.  The sensitivity of **every mathematical operation** with respect to $S_0$ (Backward pass).
 
-**Coût algorithmique** : $O(1)$ par rapport au nombre de paramètres.
-Calculer 1 grecque ou 1000 grecques a quasiment le même coût computationnel en Backward Mode AD. C'est une révolution pour le Risk Management.
+**Algorithmic Cost**: $O(1)$ relative to the number of parameters.
+Calculating 1 Greek or 1000 Greeks has almost the same computational cost in Backward Mode AD. This is a revolution for Risk Management.
 
-## 3. Focus Framework : `jax.jit` et `grad`
+## 3. Framework Focus: `jax.jit` and `grad`
 
-La combinaison `@jax.jit` + `jax.grad` est redoutable :
-1.  `grad` génère le code Python du gradient.
-2.  `jit` le compile en noyau CUDA optimisé.
-3.  `vmap` vectorise le calcul du gradient sur 100 000 trajectoires.
+The combination `@jax.jit` + `jax.grad` is formidable:
+1.  `grad` generates the Python code for the gradient.
+2.  `jit` compiles it into an optimized CUDA kernel.
+3.  `vmap` vectorizes the gradient calculation over 100,000 trajectories.
 
-Résultat : Nous calculons le Delta et le Vega de 100 000 options en quelques millisecondes.
+Result: We calculate the Delta and Vega of 100,000 options in a few milliseconds.
 
-## 4. Pro-Tip : Sensibilités aux paramètres de Monte Carlo
+## 4. Pro-Tip: Monte Carlo Parameter Sensitivities
 
-Attention, pour que `grad` fonctionne, la relation doit être continue.
-- **Payoff discontinu** (ex: Digital Option $\mathbb{1}_{S>K}$) : La dérivée $\mathbb{1}'$ est un Dirac (0 partout, infini en K). `jax.grad` donnera 0 presque partout.
-- **Solution** : Pour les payoffs discontinus, on utilise souvent le lissage (smearing) du payoff.
-- **Note** : Pour un Call standard ($max(S-K, 0)$), la fonction est continue et dérivable presque partout (sauf en $S=K$), donc AD fonctionne très bien "out of the box".
+Warning: for `grad` to work, the relationship must be continuous.
+- **Discontinuous Payoff** (e.g., Digital Option $\mathbb{1}_{S>K}$): The derivative $\mathbb{1}'$ is a Dirac (0 everywhere, infinite at K). `jax.grad` will give 0 almost everywhere.
+- **Solution**: For discontinuous payoffs, payoff smoothing (smearing) is often used.
+- **Note**: For a standard Call ($max(S-K, 0)$), the function is continuous and differentiable almost everywhere (except at $S=K$), so AD works very well "out of the box".

@@ -1,55 +1,55 @@
-# Masterclass : Market Dynamics avec JAX
+# Masterclass: Market Dynamics with JAX
 
-## 1. L'Intention Mathématique : Merton Jump Diffusion
+## 1. The Mathematical Intent: Merton Jump Diffusion
 
-Le modèle **Geometric Brownian Motion (GBM)** classique suppose que les prix évoluent de manière continue. Or, les marchés réels subissent des chocs soudains (Krachs, News). C'est pourquoi nous utilisons le **Merton Jump Diffusion Model**.
+The classic **Geometric Brownian Motion (GBM)** model assumes prices evolve continuously. However, real markets suffer from sudden shocks (Crashes, News). That's why we use the **Merton Jump Diffusion Model**.
 
-L'équation différentielle stochastique (SDE) est :
+The Stochastic Differential Equation (SDE) is:
 
 $$ \frac{dS_t}{S_t} = (\mu - \lambda k)dt + \sigma dW_t + (e^J - 1) dN_t $$
 
-Où :
-- $dW_t$ est la diffusion continue (le "bruit" normal du marché).
-- $dN_t$ est un processus de Poisson comptant les sauts survenus.
-- $J$ est la taille du saut (distribuée normalement en log).
+Where:
+- $dW_t$ is the continuous diffusion (the market's standard "noise").
+- $dN_t$ is a Poisson process counting the jumps that occur.
+- $J$ is the jump size (log-normally distributed).
 
-Dans notre code, nous simulons directement l'évolution du log-prix $X_t = \ln(S_t)$ pour la stabilité numérique :
+In our code, we directly simulate the evolution of the log-price $X_t = \ln(S_t)$ for numerical stability:
 
 $$ X_{t+\Delta t} = X_t + (\mu - \frac{\sigma^2}{2})\Delta t + \sigma \sqrt{\Delta t} Z + \sum_{i=1}^{N_{\Delta t}} J_i $$
 
-## 2. "Under the Hood" : Pourquoi JAX ?
+## 2. "Under the Hood": Why JAX?
 
-### Le Problème Python
-Une simulation Monte Carlo classique en Python pur utilise des boucles `for`. Pour 100 000 trajectoires de 252 pas, cela fait 25.2 millions d'opérations. En Python, l'overhead de l'interpréteur rendrait cela lent (plusieurs secondes, voire minutes).
+### The Python Problem
+A classic Monte Carlo simulation in pure Python uses `for` loops. For 100,000 paths of 252 steps, that's 25.2 million operations. In Python, the interpreter overhead would make this slow (several seconds or even minutes).
 
-### La Solution JAX (`@jax.jit` + `jax.vmap`)
-Notre implémentation est **entièrement vectorisée**.
+### The JAX Solution (`@jax.jit` + `jax.vmap`)
+Our implementation is **fully vectorized**.
 
-1.  **Vmap vs Boucle** : Au lieu de boucler sur les 100 000 trajectoires, nous demandons à JAX de traiter le tenseur `(100000, 252)` d'un coup. Sur GPU, cela lance des milliers de threads CUDA en parallèle.
-2.  **Compilation XLA** : Le décorateur `@jax.jit` compile le graphe de calcul entier en code machine optimisé (fusion d'opérations).
-    *   *Résultat :* Le temps d'exécution passe de ~10s (Python) à <10ms (JAX GPU) après compilation.
+1.  **Vmap vs Loop**: Instead of looping over the 100,000 trajectories, we ask JAX to process the `(100000, 252)` tensor at once. On GPU, this launches thousands of CUDA threads in parallel.
+2.  **XLA Compilation**: The `@jax.jit` decorator compiles the entire computation graph into optimized machine code (operation fusion).
+    *   *Result:* Execution time drops from ~10s (Python) to <10ms (JAX GPU) after compilation.
 
-## 3. Focus Framework : Gestion du Hasard (PRNG)
+## 3. Framework Focus: Randomness Management (PRNG)
 
-En finance, la **reproductibilité** est critique. JAX gère l'aléatoire différemment de NumPy.
-- **NumPy** : État global caché (`np.random.seed(0)`). Dangereux en parallèle.
-- **JAX** : État explicite (`key`). On doit "splitter" la clé à chaque fois qu'on veut du nouveau hasard.
+In finance, **reproducibility** is critical. JAX handles randomness differently from NumPy.
+- **NumPy**: Global hidden state (`np.random.seed(0)`). Dangerous in parallel contexts.
+- **JAX**: Explicit state (`key`). We must "split" the key every time we want new randomness.
 
-Dans `simulate_paths`, nous faisons :
+In `simulate_paths`, we do:
 ```python
 key_brownian, key_poisson, key_jump_size = jax.random.split(key, 3)
 ```
-Cela garantit que l'aléatoire du mouvement Brownien est statistiquement indépendant des sauts, et que la simulation est **parfaitement déterministe** si on rejoue avec la même clé mère.
+This ensures that the Brownian motion randomness is statistically independent of the jumps, and that the simulation is **perfectly deterministic** if replayed with the same mother key.
 
-## 4. Pro-Tip : Vectorisation des Sauts
+## 4. Pro-Tip: Jump Vectorization
 
-Implémenter des sauts aléatoires est piégeux en vectoriel. Une approche naïve serait :
-> "Pour chaque pas de temps, si une pièce tombe pile, ajoute un saut."
-Cela implique des `if/else`, très mauvais pour les GPUs (divergence de branche).
+Implementing random jumps is tricky in vectorized code. A naive approach would be:
+> "For each time step, if a coin flip is heads, add a jump."
+This implies `if/else`, which is very bad for GPUs (branch divergence).
 
-**Notre astuce** :
-Nous générons une matrice de sauts potentiels (tailles) et une matrice d'occurrence (Poisson) séparément, puis nous multiplions.
+**Our Trick**:
+We generate a matrix of potential jumps (sizes) and an occurrence matrix (Poisson) separately, then multiply them.
 ```python
 log_return_jumps = poisson_increments * jump_sizes_log_normal
 ```
-Zéro branchement conditionnel. Le GPU exécute de l'algèbre linéaire pure (multiplications de matrices), ce pour quoi il est conçu. C'est ce qui nous permet de scaler à des millions de trajectoires sans ralentissement.
+Zero conditional branching. The GPU executes pure linear algebra (matrix multiplications), which is what it's designed for. This is what allows us to scale to millions of trajectories without slowdown.

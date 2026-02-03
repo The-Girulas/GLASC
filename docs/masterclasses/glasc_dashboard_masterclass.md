@@ -1,19 +1,19 @@
-# Masterclass : The Dashboard (War Room)
+# Masterclass: The Dashboard (War Room)
 
-## 1. L'Intention : "Iron Man" Interface
+## 1. The Intent: "Iron Man" Interface
 
-Pourquoi une interface "Sci-Fi" pour de la finance ? Ce n'est pas (que) pour le style.
-Dans le trading haute fréquence ou les M&A, la densité d'information est critique.
-- **Thème Sombre** : Réduit la fatigue oculaire.
-- **Néons / Couleurs Vives** : Attirent l'attention immédiate sur les anomalies (Risque, Opportunité).
-- **Glassmorphism** : Permet de superposer des couches d'information sans perdre le contexte global.
+Why a "Sci-Fi" interface for finance? It's not (just) for style.
+In High-Frequency Trading or M&A, information density is critical.
+- **Dark Theme**: Reduces eye strain.
+- **Neon / Bright Colors**: Draw immediate attention to anomalies (Risk, Opportunity).
+- **Glassmorphism**: Allows layering information without losing global context.
 
-Notre dashboard Streamlit n'est pas un rapport passif PDF. C'est un **Cockpit de Contrôle**.
+Our Streamlit dashboard is not a passive PDF report. It is a **Control Cockpit**.
 
-## 2. "Under the Hood" : Streamlit + CSS Hack
+## 2. "Under the Hood": Streamlit + CSS Hack
 
-Streamlit est génial pour le prototypage rapide Python, mais son look par défaut est... "Web 2.0".
-Pour obtenir le look "Palantir", nous injectons du CSS brut :
+Streamlit is great for rapid Python prototyping, but its default look is... "Web 2.0".
+To get the "Palantir" look, we inject raw CSS:
 
 ```python
 st.markdown("""
@@ -26,19 +26,19 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 ```
-Cela transforme les widgets standards en panneaux de verre futuristes.
+This transforms standard widgets into futuristic glass panels.
 
-## 3. Focus Framework : Plotly & JAX Integration
+## 3. Framework Focus: Plotly & JAX Integration
 
-Connecter JAX (Backend de calcul lourd) à Streamlit (Frontend léger) demande de l'astuce.
-- **Problème** : Si JAX recalcule 100k paths à chaque clic, l'interface fige.
-- **Solution** : Le cache `jax.jit` est persistant tant que le processus Python vit. Streamlit relance le script à chaque interaction, mais JAX garde ses noyaux XLA compilés en mémoire GPU/RAM.
-- **Plotly** : Utilisé pour son interactivité (zoom, hover) sur les graphes, là où Matplotlib serait statique.
+Connecting JAX (Heavy computational backend) to Streamlit (Lightweight frontend) requires a trick.
+- **Problem**: If JAX recalculates 100k paths at every click, the interface freezes.
+- **Solution**: The `jax.jit` cache is persistent as long as the Python process is alive. Streamlit reruns the script at every interaction, but JAX keeps its compiled XLA kernels in GPU/RAM memory.
+- **Plotly**: Used for its interactivity (zoom, hover) on charts, where Matplotlib would be static.
 
-## 4. UX : Explainable AI
+## 4. UX: Explainable AI
 
-Le panneau "Strategist Thought Stream" est crucial.
-Il ne suffit pas que l'IA dise "ATTACK". Le trader humain doit voir **pourquoi**.
-En affichant le flux de messages interne de LangGraph, nous ouvrons la "Boîte Noire".
-L'humain voit : "Ah, l'IA a vu que la dette était haute, a vérifié les covenants, et c'est CA qui a déclenché l'attaque."
-C'est la clé de la confiance Homme-Machine.
+The "Strategist Thought Stream" panel is crucial.
+It is not enough for the AI to say "ATTACK". The human trader must see **why**.
+By displaying the internal LangGraph message flow, we open the "Black Box".
+The human sees: "Ah, the AI saw high debt, checked covenants, and THAT triggered the attack."
+This is the key to Man-Machine trust.

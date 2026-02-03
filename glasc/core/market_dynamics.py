@@ -2,18 +2,18 @@
 GLASC: Global Leverage & Asset Strategy Controller
 Module: Market Dynamics (Physics Engine)
 
-Ce module implémente le moteur de simulation stochastique en utilisant JAX.
-Il modélise les trajectoires d'actifs via un processus de diffusion avec sauts (Merton Jump Diffusion).
+This module implements the stochastic simulation engine using JAX.
+It models asset paths via a jump diffusion process (Merton Jump Diffusion).
 
-Formule SDE:
+SDE Formula:
 dS_t = S_t * (mu * dt + sigma * dW_t + (Y - 1) * dN_t)
 
-Où:
-- mu: Drift constant
-- sigma: Volatilité constante
-- dW_t: Mouvement Brownien standard
-- dN_t: Processus de Poisson (intensité lambda)
-- Y: Taille du saut (log-normal)
+Where:
+- mu: Constant Drift
+- sigma: Constant Volatility
+- dW_t: Standard Brownian Motion
+- dN_t: Poisson Process (intensity lambda)
+- Y: Jump Size (log-normal)
 """
 
 import jax
@@ -25,12 +25,12 @@ from jaxtyping import Float, Array, PRNGKeyArray
 
 @struct.dataclass
 class MarketParameters:
-    """Paramètres immuables pour la simulation de marché (Merton Jump Diffusion)."""
-    mu: float        # Drift annuel (ex: 0.05 pour 5%)
-    sigma: float     # Volatilité annuelle (ex: 0.20 pour 20%)
-    lambda_j: float  # Intensité des sauts (nombre moyen de sauts par an)
-    jump_mean: float # Moyenne du log-saut
-    jump_std: float  # Écart-type du log-saut
+    """Immutable parameters for market simulation (Merton Jump Diffusion)."""
+    mu: float        # Annual Drift (e.g., 0.05 for 5%)
+    sigma: float     # Annual Volatility (e.g., 0.20 for 20%)
+    lambda_j: float  # Jump Intensity (average number of jumps per year)
+    jump_mean: float # Mean of log-jump
+    jump_std: float  # Standard Deviation of log-jump
 
 @partial(jax.jit, static_argnames=["n_steps", "n_paths"])
 def simulate_paths(
@@ -42,73 +42,73 @@ def simulate_paths(
     n_paths: int
 ) -> Float[Array, "n_paths n_steps_plus_1"]:
     """
-    Simule des trajectoires de prix d'actifs selon le modèle Merton Jump Diffusion.
-    Exécuté en parallèle (Vectorisé) et compilé (JIT).
+    Simulates asset price paths according to the Merton Jump Diffusion model.
+    Executed in parallel (Vectorized) and complied (JIT).
     
     Args:
-        key: Clé PRNG JAX.
-        params: Paramètres du marché (mu, sigma, sauts).
-        s0: Prix initial.
-        T: Horizon temporel en années.
-        n_steps: Nombre de pas de temps.
-        n_paths: Nombre de trajectoires à simuler.
+        key: JAX PRNG Key.
+        params: Market Parameters (mu, sigma, jumps).
+        s0: Initial Price.
+        T: Time Horizon in years.
+        n_steps: Number of time steps.
+        n_paths: Number of paths to simulate.
         
     Returns:
-        Trajectoires simulées de forme (n_paths, n_steps + 1).
+        Simulated paths of shape (n_paths, n_steps + 1).
     """
     dt = T / n_steps
     
-    # Séparation des clés pour les différents processus stochastiques
+    # Split keys for different stochastic processes
     key_brownian, key_poisson, key_jump_size = jax.random.split(key, 3)
     
-    # 1. Mouvement Brownien Géométrique (GBM) Part
+    # 1. Geometric Brownian Motion (GBM) Part
     # Z ~ N(0, 1)
     brownian_increments = jax.random.normal(key_brownian, shape=(n_paths, n_steps))
     
-    # Drift déterministe + Diffusion Brownienne
-    # log(S_t) évolution pour la partie continue: (mu - 0.5 * sigma^2) * dt + sigma * sqrt(dt) * Z
+    # Deterministic Drift + Brownian Diffusion
+    # log(S_t) evolution for continuous part: (mu - 0.5 * sigma^2) * dt + sigma * sqrt(dt) * Z
     log_return_continuous = (params.mu - 0.5 * params.sigma**2) * dt + \
                             params.sigma * jnp.sqrt(dt) * brownian_increments
     
     # 2. Jump Part (Merton)
-    # Nombre de sauts dans chaque intervalle dt: Poisson(lambda * dt)
-    # Pour des petits dt, Bernouilli(lambda * dt) est une bonne approx, mais Poisson est exact.
-    # On utilise Poisson ici.
+    # Number of jumps in each dt interval: Poisson(lambda * dt)
+    # For small dt, Bernouilli(lambda * dt) is a good approx, but Poisson is exact.
+    # We use Poisson here.
     poisson_increments = jax.random.poisson(key_poisson, params.lambda_j * dt, shape=(n_paths, n_steps))
     
-    # Taille des sauts: Y ~ LogNormal(jump_mean, jump_std)
-    # Contribution au log-return: log(Y) ~ Normal(jump_mean, jump_std)
-    # Si k sauts se produisent, on ajoute k tirages de Normal(jump_mean, jump_std).
-    # Optimisation: On génère une grille de sauts potentiels (un par pas de temps par path) 
-    # et on masque par poisson_increments. 
-    # Note: Si poisson_increments > 1, cela sous-estime la variance des sauts multiples dans un seul dt.
-    # Pour dt petit, p(N > 1) est négligeable. Pour être rigoureux vectorisé simple:
-    # On va supposer max 1 saut significatif par dt ou accepter l'approx somme normale.
-    # Version rigoureuse JAX: Somme de variables normales = Variable normale.
-    # Si N sauts, log_jump ~ Normal(N * jump_mean, sqrt(N) * jump_std).
+    # Jump Size: Y ~ LogNormal(jump_mean, jump_std)
+    # Contribution to log-return: log(Y) ~ Normal(jump_mean, jump_std)
+    # If k jumps occur, we add k draws of Normal(jump_mean, jump_std).
+    # Optimization: Generate a grid of potential jumps (one per time step per path) 
+    # and mask by poisson_increments. 
+    # Note: If poisson_increments > 1, this underestimates variance of multiple jumps in a single dt.
+    # For small dt, p(N > 1) is negligible. To be simple vectorized rigorous:
+    # We assume max 1 significant jump per dt or accept the sum normal approx.
+    # Rigorous JAX version: Sum of normal variables = Normal variable.
+    # If N jumps, log_jump ~ Normal(N * jump_mean, sqrt(N) * jump_std).
     
-    # Masque des sauts (0 ou 1+). Pour la simulation précise vectorisée très rapide:
-    # On génère des sauts standards pour chaque pas.
+    # Jump Mask (0 or 1+). For very fast vectorized precise simulation:
+    # Generate standard jumps for each step.
     jump_sizes_log_normal = jax.random.normal(key_jump_size, shape=(n_paths, n_steps)) * params.jump_std + params.jump_mean
     
-    # Contribution totale des sauts au log-return = nombre_sauts * taille_saut_moyen (approx)
-    # Ou mieux: on multiplie par le nombre de sauts. 
-    # Attention: si 2 sauts, on devrait sommer 2 variables aléatoires différentes.
-    # Ici on multiplie la même variable par N. C'est une approximation acceptable si dt -> 0.
+    # Total jump contribution to log-return = jump_count * average_jump_size (approx)
+    # Or better: multiply by number of jumps. 
+    # Warning: if 2 jumps, we should sum 2 different random variables.
+    # Here we multiply the same variable by N. Acceptable approximation if dt -> 0.
     log_return_jumps = poisson_increments * jump_sizes_log_normal
     
-    # 3. Agrégation
+    # 3. Aggregation
     all_log_returns = log_return_continuous + log_return_jumps
     
-    # Chemin complet via somme cumulée
+    # Full path via cumulative sum
     log_paths = jnp.cumsum(all_log_returns, axis=1)
     
-    # Ajout du point de départ t=0
+    # Add starting point t=0
     # log_S0 = log(S0)
     log_S0 = jnp.log(s0)
     initial_log_prices = jnp.full((n_paths, 1), log_S0)
     
-    # Trajectoire complète
+    # Complete Trajectory
     full_log_paths = jnp.concatenate([initial_log_prices, initial_log_prices + log_paths], axis=1)
     
     return jnp.exp(full_log_paths)
@@ -124,16 +124,16 @@ def compute_success_probability(
     n_paths: int = 10_000
 ) -> float:
     """
-    Calcule la probabilité de réussite de l'OPA.
-    Hypothèse : L'OPA réussit si le prix du marché chute en dessous du 'target_acquisition_price' 
-    (rendant l'entreprise vulnérable/bon marché) ou si la volatilité permet un coup de force.
+    Calculates the probability of Takeover Success.
+    Hypothesis: The TOB succeeds if the market price falls below 'target_acquisition_price'
+    (making the company vulnerable/cheap) or if volatility allows a power move.
     
-    Ici, simple métrique : P(S_T < Acquisition_Price).
-    Plus l'actif s'effondre, plus c'est facile à racheter.
+    Here, simple metric: P(S_T < Acquisition_Price).
+    The more the asset crashes, the easier it is to buy.
     """
     paths = simulate_paths(key, params, s0, T, n_steps, n_paths)
     final_prices = paths[:, -1]
     
-    # Combien de chemins finissent sous le prix cible ?
+    # How many paths end up under the target price?
     success_count = jnp.sum(final_prices < target_acquisition_price)
     return success_count / n_paths

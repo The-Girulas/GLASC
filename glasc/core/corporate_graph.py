@@ -2,13 +2,13 @@
 GLASC: Global Leverage & Asset Strategy Controller
 Module: Corporate Graph (Battlefield Mapping)
 
-Ce module modélise la structure de l'entreprise cible sous forme de graphe (NetworkX).
-Il intègre les données validées par Pydantic pour simuler des scénarios d'OPA (Tender Offer).
+This module models the target company structure as a graph (NetworkX).
+It integrates Pydantic-validated data to simulate Tender Offer scenarios.
 
 Entities:
-- Shareholder: Détenteur de votes.
-- DebtTranche: Créancier avec covenants.
-- BoardMember: Influenceur.
+- Shareholder: Holder of votes.
+- DebtTranche: Creditor with covenants.
+- BoardMember: Influencer.
 """
 
 import networkx as nx
@@ -19,12 +19,12 @@ import math
 # --- Pydantic Data Structures ---
 
 class Shareholder(BaseModel):
-    """Actionnaire détenant une part du capital et des droits de vote."""
+    """Shareholder holding capital and voting rights."""
     name: str
-    share_count: int = Field(ge=0, description="Nombre d'actions détenues")
+    share_count: int = Field(ge=0, description="Number of shares held")
     category: Literal["INSTITUTIONAL", "RETAIL", "INSIDER", "ACTIVIST", "PASSIVE"]
-    cost_basis: float = Field(..., description="Prix moyen d'achat estimé")
-    loyalty_score: float = Field(ge=0.0, le=1.0, description="Probabilité de ne PAS vendre (0=Mercenaire, 1=Fidèle)")
+    cost_basis: float = Field(..., description="Estimated average purchase price")
+    loyalty_score: float = Field(ge=0.0, le=1.0, description="Probability of NOT selling (0=Mercenary, 1=Loyal)")
     
     @property
     def value(self, current_price: float) -> float:
@@ -32,39 +32,39 @@ class Shareholder(BaseModel):
 
     def will_tender(self, offer_price: float, current_price: float) -> bool:
         """
-        Modèle probabiliste déterministe simple pour la simulation.
-        Décide si l'actionnaire apporte ses titres à l'offre.
+        Simple deterministic probabilistic model for the simulation.
+        Decides if the shareholder tenders their shares to the offer.
         """
         premium = (offer_price - current_price) / current_price
         gain_vs_cost = (offer_price - self.cost_basis) / self.cost_basis
         
-        # Score d'attractivité de l'offre
-        # Premium est roi. Le gain historique est un bonus plafonné.
-        # On ne vend pas sa boite juste parce qu'on a fait x10 depuis 20 ans, on vend pour le premium actuel.
-        capped_gain = min(gain_vs_cost, 0.5) # Plafonné à +50% d'impact
+        # Attractiveness Score of the Offer
+        # Premium is king. Historical gain is a capped bonus.
+        # You don't sell your company just because you made 10x in 20 years, you sell for the current premium.
+        capped_gain = min(gain_vs_cost, 0.5) # Capped at +50% impact
         attractiveness = premium + 0.2 * capped_gain
         
-        # Seuil de vente ajusté par la loyauté
-        # Loyalty 1.0 (Logan) -> Threshold 0.3 (Il faut 30% d'attractivité combinée)
-        # Loyalty 0.0 (Stewy) -> Threshold 0.0 (Vend dès que c'est positif)
+        # Selling threshold adjusted by loyalty
+        # Loyalty 1.0 (Logan) -> Threshold 0.3 (Needs 30% combined attractiveness)
+        # Loyalty 0.0 (Stewy) -> Threshold 0.0 (Sells as soon as it's positive)
         tender_threshold = self.loyalty_score * 0.3
         
-        # Pour éviter les ventes à perte irrationnelles si premium > 0 mais prix < cost
+        # To avoid irrational selling at a loss if premium > 0 but price < cost
         if offer_price < self.cost_basis and self.category != "ACTIVIST":
-             # Les retail/insiders détestent vendre à perte (Loss Aversion)
+             # Retail/Insiders hate selling at a loss (Loss Aversion)
              tender_threshold += 0.2
         
         return attractiveness > tender_threshold
 
 
 class DebtTranche(BaseModel):
-    """Dette de l'entreprise avec ses conditions (Covenants)."""
+    """Company debt with its conditions (Covenants)."""
     lender_name: str
     amount: float
     interest_rate: float
     maturity_years: float
     is_convertible: bool = False
-    # Covenants: Limite max de Leverage (NetDebt/EBITDA)
+    # Covenants: Max Leverage Limit (NetDebt/EBITDA)
     max_leverage_ratio: Optional[float] = None
     
     def check_covenant_breach(self, ebitda: float, total_net_debt: float) -> bool:
@@ -75,7 +75,7 @@ class DebtTranche(BaseModel):
 
 
 class BoardMember(BaseModel):
-    """Membre du Conseil d'Administration."""
+    """Member of the Board of Directors."""
     name: str
     is_independent: bool
     influence_score: float = Field(ge=0.0, le=10.0)
@@ -84,26 +84,26 @@ class BoardMember(BaseModel):
 # --- Network Logic ---
 
 class CorporateNetwork:
-    """Wrapper autour d'un DiGraph NetworkX représentant l'écosystème."""
+    """Wrapper around a NetworkX DiGraph representing the ecosystem."""
     
     def __init__(self, company_name: str):
         self.company_name = company_name
         self.graph = nx.DiGraph()
-        # Le noeud central
+        # The central node
         self.graph.add_node("COMPANY", type="TARGET", name=company_name)
         
     def add_shareholder(self, sh: Shareholder):
-        """Ajoute un actionnaire au graphe avec un lien 'OWNS'."""
+        """Adds a shareholder to the graph with an 'OWNS' link."""
         self.graph.add_node(sh.name, type="SHAREHOLDER", data=sh)
         self.graph.add_edge(sh.name, "COMPANY", relation="OWNS", share_count=sh.share_count)
         
     def add_debt(self, dt: DebtTranche):
-        """Ajoute une dette au graphe avec un lien 'LENDS_TO'."""
+        """Adds debt to the graph with a 'LENDS_TO' link."""
         self.graph.add_node(dt.lender_name, type="LENDER", data=dt)
         self.graph.add_edge(dt.lender_name, "COMPANY", relation="LENDS_TO", amount=dt.amount)
 
     def add_board_member(self, bm: BoardMember):
-        """Ajoute un membre du board."""
+        """Adds a board member."""
         self.graph.add_node(bm.name, type="BOARD_MEMBER", data=bm)
         self.graph.add_edge(bm.name, "COMPANY", relation="SITS_ON_BOARD", influence=bm.influence_score)
 
@@ -111,7 +111,7 @@ class CorporateNetwork:
         return sum(d["share_count"] for u, v, d in self.graph.edges(data=True) if d.get("relation") == "OWNS")
 
     def get_shareholder_distribution(self) -> Dict[str, float]:
-        """Retourne la répartition du capital par catégorie."""
+        """Returns the capital distribution by category."""
         total = self.get_total_shares()
         if total == 0: return {}
         
@@ -125,8 +125,8 @@ class CorporateNetwork:
 
     def simulate_tender_offer(self, offer_price: float, current_price: float) -> float:
         """
-        Simule le pourcentage de réussite d'une OPA à un prix donné.
-        Retourne le % du capital apporté.
+        Simulates the success percentage of a Tender Offer at a given price.
+        Returns the % of capital tendered.
         """
         total_shares = self.get_total_shares()
         tendered_shares = 0
@@ -140,10 +140,10 @@ class CorporateNetwork:
         return tendered_shares / total_shares if total_shares > 0 else 0.0
 
     def check_poison_pills(self, simulated_ebitda: float, additional_debt: float = 0.0) -> List[str]:
-        """Vérifie si le rachat (utilisant de la dette) déclenche des covenants."""
+        """Verifies if the buyout (using debt) triggers covenants."""
         triggers = []
         
-        # Calcul dette totale existante
+        # Calculate total existing debt
         current_debt = sum(d["amount"] for u, v, d in self.graph.edges(data=True) if d.get("relation") == "LENDS_TO")
         total_debt = current_debt + additional_debt
         

@@ -1,31 +1,31 @@
-# Masterclass : War Room V2 (React Architecture)
+# Masterclass: War Room V2 (React Architecture)
 
-## 1. L'Intention : "Hollywood-Grade" Interface
+## 1. The Intent: "Hollywood-Grade" Interface
 
-L'interface Streamlit était fonctionnelle mais statique.
-Pour convaincre un utilisateur High-Level (Hedge Fund Manager), l'interface doit être "vivante".
-- **React Force Graph 3D** : Le réseau d'entreprise n'est pas un dessin figé, c'est un univers navigable.
-- **WebSocket Streaming** : L'IA ne "répond" pas après 30s. Elle *pense* devant vous, ligne par ligne. C'est psychologiquement crucial pour l'attente.
+The Streamlit interface was functional but static.
+To convince a High-Level user (Hedge Fund Manager), the interface must be "alive".
+- **React Force Graph 3D**: The corporate network is not a frozen drawing, it is a navigable universe.
+- **WebSocket Streaming**: The AI doesn't "respond" after 30s. It *thinks* in front of you, line by line. This is psychologically critical for waiting times.
 
 ## 2. Fullstack Architecture
 
 ### Backend (The Brain) - `api/main.py`
-Nous avons wrappé le GLASC Core dans **FastAPI**.
-Pourquoi ?
-- **Asynchrone** : FastAPI gère des milliers de connexions WebSocket sans bloquer le moteur JAX.
-- **Microservice Ready** : Cette API peut être déployée indépendamment du frontend (ex: sur un cluster GPU).
+We wrapped the GLASC Core in **FastAPI**.
+Why?
+- **Async**: FastAPI handles thousands of WebSocket connections without blocking the JAX engine.
+- **Microservice Ready**: This API can be deployed independently of the frontend (e.g., on a GPU cluster).
 
 ### Frontend (The Face) - `frontend/`
-Construit avec **Vite + React**.
-- **TailwindCSS** : Pour le "Rapid Styling". Nous avons créé une config custom (`tailwind.config.js`) avec nos couleurs Néon.
-- **Recharts** & **ForceGraph** : Bibliothèques de visualisation D3.js encapsulées pour React.
+Built with **Vite + React**.
+- **TailwindCSS**: For "Rapid Styling". We created a custom config (`tailwind.config.js`) with our Neon colors.
+- **Recharts** & **ForceGraph**: D3.js visualization libraries encapsulated for React.
 
-## 3. Le "Thought Stream Protocol"
-Le défi majeur est de montrer le raisonnement de l'agent.
-Nous n'utilisons pas HTTP Request/Response classique.
-Nous ouvrons un **WebSocket (`ws://...`)**.
-1. Le Frontend s'abonne.
-2. L'Agent LangGraph émet des événements (`STEP`, `THOUGHT`, `DECISION`).
-3. Le Frontend les affiche comme un terminal de hacker ("Typewriter effect").
+## 3. The "Thought Stream Protocol"
+The major challenge is showing the agent's reasoning.
+We don't use classic HTTP Request/Response.
+We open a **WebSocket (`ws://...`)**.
+1. The Frontend subscribes.
+2. The LangGraph Agent emits events (`STEP`, `THOUGHT`, `DECISION`).
+3. The Frontend displays them like a hacker terminal ("Typewriter effect").
 
-Cela donne l'illusion de "lire dans les pensées" de la machine.
+This gives the illusion of "reading the machine's thoughts".

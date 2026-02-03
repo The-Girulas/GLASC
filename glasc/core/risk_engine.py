@@ -2,9 +2,9 @@
 GLASC: Global Leverage & Asset Strategy Controller
 Module: Risk Engine (Differentiable Metrics & Greeks)
 
-Ce module fournit les outils pour calculer les mesures de risque (VaR, ES)
-et les sensibilités (Grecques: Delta, Vega, etc.) en utilisant la différentiation
-automatique (AD) de JAX sur les simulations Monte Carlo.
+This module provides tools to calculate risk metrics (VaR, ES)
+and sensitivities (Greeks: Delta, Vega, etc.) using JAX's
+automatic differentiation (AD) on Monte Carlo simulations.
 """
 
 import jax
@@ -15,51 +15,52 @@ from jaxtyping import Float, Array, PRNGKeyArray
 
 from glasc.core.market_dynamics import simulate_paths, MarketParameters
 
+@partial(jax.jit, static_argnames=["confidence_level"])
 def calculate_var_es(
     final_prices: Float[Array, "n_paths"],
     confidence_level: float = 0.95
 ) -> Tuple[float, float]:
     """
-    Calcule la Value at Risk (VaR) et l'Expected Shortfall (ES) sur la distribution finale.
+    Calculates Value at Risk (VaR) and Expected Shortfall (ES) on the final distribution.
     
     Args:
-        final_prices: Tenseur des prix terminaux (ou PnL).
-        confidence_level: Niveau de confiance (ex: 0.95).
+        final_prices: Tensor of terminal prices (or PnL).
+        confidence_level: Confidence level (e.g., 0.95).
         
     Returns:
         (VaR, ES)
-        Note: VaR est ici définie comme une perte positive (ex: VaR 95% = Quantile 5%).
+        Note: VaR is defined here as a positive loss level (e.g., VaR 95% = 5% Quantile).
     """
-    # Calcul du PnL relatif ou absolu ?
-    # Ici, on suppose que final_prices représente la distribution des valeurs futures du portefeuille.
-    # Souvent VaR est exprimée en perte par rapport à la moyenne ou au spot.
-    # Pour simplifier, calculons les quantiles de la distribution.
+    # Relative or Absolute PnL?
+    # Here, we assume final_prices represents the distribution of future portfolio values.
+    # Often VaR is expressed as loss relative to mean or spot.
+    # To simplify, we calculate the distribution quantiles.
     
     n_paths = final_prices.shape[0]
     
-    # Tri pour trouver les quantiles empiriques
+    # Sort to find empirical quantiles
     sorted_prices = jnp.sort(final_prices)
     
-    # Index du quantile alpha (ex: 5% pour un niveau de confiance de 95%)
+    # Index of alpha quantile (e.g., 5% for a 95% confidence level)
     alpha = 1.0 - confidence_level
     index = jnp.astype(alpha * n_paths, jnp.int32)
     
-    # VaR = Prix au quantile alpha.
-    # Si on parle de perte: VaR = Mean - Quantile ou Initial - Quantile.
-    # Restons génériques: on retourne le quantile.
+    # VaR = Price at alpha quantile.
+    # If discussing loss: VaR = Mean - Quantile or Initial - Quantile.
+    # Staying generic: we return the quantile.
     var_price_level = sorted_prices[index]
     
-    # Expected Shortfall = Moyenne des prix inférieurs à la VaR (Queue de distribution)
+    # Expected Shortfall = Mean of prices below VaR (Tail of distribution)
     # ES = E[X | X <= VaR]
-    # On prend les 'index' premiers éléments
-    # Pour éviter la division par zéro si index=0
+    # We take the first 'index' elements
+    # Avoid division by zero if index=0
     safe_index = jnp.maximum(1, index)
     es_price_level = jnp.mean(sorted_prices[:safe_index])
     
     return var_price_level, es_price_level
 
 def european_call_payoff(prices: Float[Array, "n_paths"], strike: float) -> Float[Array, "n_paths"]:
-    """Payoff simple d'ex: Call Européen."""
+    """Simple payoff e.g., European Call."""
     return jnp.maximum(prices - strike, 0.0)
 
 def pricing_function(
@@ -72,9 +73,9 @@ def pricing_function(
     key: PRNGKeyArray
 ) -> float:
     """
-    Fonction pivot pour le calcul des prix et des Grecques.
-    Exécute la simulation 'end-to-end' et retourne le prix moyen actualisé (Risk-Neutral).
-    Cette fonction scalaire est différentiable par rapport à 'params' et 's0'.
+    Pivot function for calculating prices and Greeks.
+    Runs the 'end-to-end' simulation and returns the discounted mean price (Risk-Neutral).
+    This scalar function is differentiable with respect to 'params' and 's0'.
     """
     # 1. Simulation
     paths = simulate_paths(key, params, s0, T, n_steps, n_paths)
@@ -83,12 +84,12 @@ def pricing_function(
     # 2. Payoff
     payoffs = payoff_fn(final_prices)
     
-    # 3. Discounting (Prix = Espérance actualisée sous mesure risque-neutre)
-    # Note: Dans Merton Jump Diffusion, le drift 'mu' n'est pas forcément le taux sans risque 'r'.
-    # Pour le pricing, on remplace souvent mu par r - lambda*k.
-    # ICI: On suppose que les params passés sont déjà les params 'Risk-Neutral' (Q-Measure).
-    # Donc mu = r - compensateur.
-    # Pour simplifier l'exemple, on actualise par exp(-mu * T).
+    # 3. Discounting (Price = Discounted Expectation under Risk-Neutral measure)
+    # Note: In Merton Jump Diffusion, drift 'mu' is not necessarily risk-free rate 'r'.
+    # For pricing, we often replace mu with r - lambda*k.
+    # HERE: We assume passed params are already 'Risk-Neutral' (Q-Measure).
+    # So mu = r - compensator.
+    # To simplify example, we discount by exp(-mu * T).
     discount_factor = jnp.exp(-params.mu * T)
     
     price = discount_factor * jnp.mean(payoffs)
@@ -105,25 +106,25 @@ def compute_greeks(
     n_paths: int = 100_000
 ):
     """
-    Calcule Prix, Delta et Vega en une seule passe (ou presque) via AD.
-    Utilise jax.value_and_grad.
+    Calculates Price, Delta, and Vega in a single pass (or almost) via AD.
+    Uses jax.value_and_grad.
     """
     
-    # Wrapper pour différentier par rapport à S0 (Delta)
+    # Wrapper to differentiate with respect to S0 (Delta)
     def price_given_s0(s):
         return pricing_function(params, s, T, n_steps, n_paths, payoff_fn, key)
     
-    # Wrapper pour différentier par rapport à Sigma (Vega)
+    # Wrapper to differentiate with respect to Sigma (Vega)
     def price_given_sigma(sigma_val):
-        # On recrée params avec la nouvelle vol (functional update)
+        # Recreate params with new vol (functional update)
         new_params = params.replace(sigma=sigma_val)
         return pricing_function(new_params, s0, T, n_steps, n_paths, payoff_fn, key)
 
-    # Calcul primal + gradient
+    # Primal + Gradient calculation
     price, delta = jax.value_and_grad(price_given_s0)(s0)
     _, vega = jax.value_and_grad(price_given_sigma)(params.sigma)
     
-    # Gamma (Dérivée seconde)
+    # Gamma (Second derivative)
     gamma = jax.grad(jax.grad(price_given_s0))(s0)
     
     return {

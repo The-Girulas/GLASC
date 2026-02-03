@@ -1,46 +1,46 @@
-# Masterclass : Predator Brain & Synthetic Reality
+# Masterclass: Predator Brain & Synthetic Reality
 
-## 1. L'Intention : Un Cerveau pour la Finance
+## 1. The Intent: A Brain for Finance
 
-Notre objectif est de créer un agent capable de détecter des opportunités d'OPA hostile que l'humain ne voit pas. Pour cela, nous utilisons un **Réseau de Neurones Profond (Deep Learning)**.
+Our goal is to create an agent capable of detecting hostile takeover opportunities that humans miss. For this, we use a **Deep Neural Network**.
 
-Contrairement à un algorithme classique ("Si Dette > 5, Alors Rejet"), le réseau de neurones apprend des interactions non-linéaires subtiles :
-> *"Une dette élevée est mauvaise, SAUF si le Cash Flow est énorme ET que les taux sont bas."*
+Unlike a classic algorithm ("If Debt > 5, Then Reject"), the neural network learns subtle non-linear interactions:
+> *"High debt is bad, UNLESS Cash Flow is huge AND rates are low."*
 
-## 2. "Under the Hood" : Training on Synthetic Reality
+## 2. "Under the Hood": Training on Synthetic Reality
 
-Le plus grand défi de l'IA financière est le manque de données labellisées (Historical M&A Data is scarce).
-Nous avons résolu ce problème par la **Génération de Données Synthétiques Réalistes**.
+The biggest challenge in financial AI is the lack of labeled data (Historical M&A Data is scarce).
+We solved this problem via **Realistic Synthetic Data Generation**.
 
-Suite à une recherche approfondie sur les marchés US/Europe, nous avons calibré nos générateurs (`RealisticDataGenerator`) :
+Following extensive research on US/Europe markets, we calibrated our generators (`RealisticDataGenerator`):
 
-### A. La Dette (Le Danger)
-La distribution `NetDebt/EBITDA` n'est pas normale. Elle est **Log-Normale** avec une "Fat Tail".
-- La plupart des boites saines sont autour de **2.5x**.
-- Mais il existe des "zombies" à **6x - 8x** (Cibles potentielles de restructuration ou pièges mortels).
-Notre générateur reproduit cette asymétrie.
+### A. Debt (The Danger)
+The `NetDebt/EBITDA` distribution is not normal. It is **Log-Normal** with a "Fat Tail".
+- Most healthy companies are around **2.5x**.
+- But there are "zombies" at **6x - 8x** (Potential restructuring targets or death traps).
+Our generator reproduces this asymmetry.
 
-### B. L'Actionnariat (Le Verrou)
-Nous utilisons une **Distribution Beta** pour modéliser la part des Institutionnels ("Smart Money").
-- Les Large Caps sont détenues à **~70-80%** par des fonds (BlackRock, Vanguard).
-- Les Small Caps sont souvent détenues par des Insiders (Familles).
-Le Brain apprend ainsi que s'attaquer à une Small Cap familiale (Insider > 40%) est futile, même si la dette est faible.
+### B. Shareholding (The Lock)
+We use a **Beta Distribution** to model the share of Institutional Investors ("Smart Money").
+- Large Caps are **~70-80%** owned by funds (BlackRock, Vanguard).
+- Small Caps are often owned by Insiders (Families).
+The Brain thus learns that attacking a family-owned Small Cap (Insider > 40%) is futile, even if debt is low.
 
-## 3. Focus Framework : Flax & Optax
+## 3. Framework Focus: Flax & Optax
 
-Pourquoi **Flax** ?
-Flax (par Google Research) est construit sur l'idée de **"Functional Programming"**.
-Au lieu d'avoir des objets avec un état caché (`self.weights` en PyTorch), Flax sépare totalement :
-1.  **Architecture** (Le code, immuable).
-2.  **Paramètres** (Les poids, un simple dictionnaire JAX).
+Why **Flax**?
+Flax (by Google Research) is built on the idea of **"Functional Programming"**.
+Instead of having objects with hidden state (`self.weights` in PyTorch), Flax totally separates:
+1.  **Architecture** (The code, immutable).
+2.  **Parameters** (The weights, a simple JAX dictionary).
 
-Cela rend le code :
-- **Purement fonctionnel** : Pas d'effets de bord.
-- **JIT-Compliant** : On peut compiler toute la boucle d'entraînement (`train_step`) avec XLA pour une vitesse extrême.
+This makes the code:
+- **Purely functional**: No side effects.
+- **JIT-Compliant**: We can compile the entire training loop (`train_step`) with XLA for extreme speed.
 
-## 4. Pro-Tip : L'Oracle "Vérité Terrain"
+## 4. Pro-Tip: The "Ground Truth" Oracle
 
-Pour entraîner le cerveau, nous avons codé un "Oracle" (une formule complexe cachée) qui détermine si une OPA *devrait* réussir.
-Le réseau de neurones n'a jamais accès à cette formule. Il voit seulement les inputs (Bilans) et le résultat (Succès/Échec).
-Il doit **rétro-ingénierier** l'intuition du marché par lui-même.
-C'est le principe de la "Distillation de Connaissance".
+To train the brain, we coded an "Oracle" (a hidden complex formula) that determines if a takeover *should* succeed.
+The neural network never has access to this formula. It only sees the inputs (Balance Sheets) and the result (Success/Failure).
+It must **reverse-engineer** market intuition by itself.
+This is the principle of "Knowledge Distillation".
